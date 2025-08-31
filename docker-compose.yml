@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:17
+    container_name: rbac_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports: [ "5432:5432" ]
+#    volumes: [ "pgdata:/var/lib/postgresql/data" ]
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U rbac -d rbac_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  liquibase:
+    image: liquibase/liquibase:4.32
+    container_name: rbac_liquibase
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./src/main/resources/db/changelog:/liquibase/changelog:ro
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    working_dir: /liquibase
+    command: ["--log-level=info", "--url=jdbc:postgresql://db:5432/${POSTGRES_DB}", "--username=${POSTGRES_USER}", "--password=${POSTGRES_PASSWORD}", "--changelog-file=changelog/changelog-master.yaml", "update"]
+    restart: "no"
+  app:
+    build: .
+    image: rbac-base-kt:latest
+    depends_on:
+      db:
+        condition: service_healthy
+      liquibase:
+        condition: service_completed_successfully
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:-changeme-please-very-long-random}
+      JWT_ISSUER: ${JWT_ISSUER:-rbac-base}
+    ports: [ "8080:8080" ]
+#volumes:
+#  pgdata: { }

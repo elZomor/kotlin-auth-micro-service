@@ -1,0 +1,6 @@
+liquibase:
+  url: jdbc:postgresql://db:5432/${POSTGRES_DB}
+  username: ${POSTGRES_USER}
+  password: ${POSTGRES_PASSWORD}
+  changelog_file: db/changelog/changelog-master.yaml
+  logLevel: info

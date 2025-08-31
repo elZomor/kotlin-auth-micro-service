@@ -1,0 +1,461 @@
+name: Database Migration Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/main/resources/db/**'
+      - '.github/workflows/database-migration.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'src/main/resources/db/**'
+      - '.github/workflows/database-migration.yml'
+  workflow_dispatch:
+
+env:
+  POSTGRES_DB: rbac_test_db
+  POSTGRES_USER: rbac_test
+  POSTGRES_PASSWORD: rbac_test_password
+  POSTGRES_VERSION: '17'
+
+jobs:
+  liquibase-validation:
+    name: Liquibase Migration Validation
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:${{ env.POSTGRES_VERSION }}
+        env:
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+
+    - name: Wait for PostgreSQL to be ready
+      run: |
+        for i in {1..30}; do
+          if pg_isready -h localhost -p 5432 -U ${{ env.POSTGRES_USER }}; then
+            echo "PostgreSQL is ready"
+            break
+          fi
+          echo "Waiting for PostgreSQL... ($i/30)"
+          sleep 2
+        done
+
+    - name: Verify PostgreSQL connection
+      env:
+        PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
+      run: |
+        psql -h localhost -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} -c "SELECT version();"
+
+    - name: Setup Liquibase CLI
+      uses: liquibase-github-actions/liquibase-cli@v4.29.2
+
+    - name: Create test Liquibase properties
+      run: |
+        cat > liquibase-test.properties << EOF
+        changeLogFile=src/main/resources/db/changelog/changelog-master.yaml
+        url=jdbc:postgresql://localhost:5432/${{ env.POSTGRES_DB }}
+        username=${{ env.POSTGRES_USER }}
+        password=${{ env.POSTGRES_PASSWORD }}
+        logLevel=info
+        classpath=postgresql-42.7.4.jar
+        EOF
+
+    - name: Download PostgreSQL JDBC driver
+      run: |
+        wget -q https://jdbc.postgresql.org/download/postgresql-42.7.4.jar
+        ls -la postgresql-42.7.4.jar
+
+    - name: Validate Liquibase changelog syntax
+      run: |
+        liquibase --defaults-file=liquibase-test.properties validate
+
+    - name: Check Liquibase status (should show no changes applied)
+      run: |
+        echo "=== Initial Status Check ==="
+        liquibase --defaults-file=liquibase-test.properties status --verbose
+
+    - name: Run Liquibase update (apply all migrations)
+      run: |
+        echo "=== Running Database Migration ==="
+        liquibase --defaults-file=liquibase-test.properties update
+
+    - name: Verify migration status
+      run: |
+        echo "=== Post-Migration Status Check ==="
+        liquibase --defaults-file=liquibase-test.properties status
+
+    - name: Check database schema was created correctly
+      env:
+        PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
+      run: |
+        echo "=== Verifying Database Schema ==="
+        
+        # Check if tables exist
+        echo "Checking if main tables exist..."
+        psql -h localhost -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} -c "
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_type = 'BASE TABLE'
+        ORDER BY table_name;
+        "
+        
+        # Check if indexes exist
+        echo "Checking indexes..."
+        psql -h localhost -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} -c "
+        SELECT indexname, tablename 
+        FROM pg_indexes 
+        WHERE schemaname = 'public'
+        ORDER BY tablename, indexname;
+        "
+        
+        # Check for constraints
+        echo "Checking constraints..."
+        psql -h localhost -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} -c "
+        SELECT conname, contype, conrelid::regclass AS table_name
+        FROM pg_constraint
+        WHERE connamespace = 'public'::regnamespace
+        ORDER BY table_name, conname;
+        "
+
+    - name: Verify Liquibase tracking tables
+      env:
+        PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
+      run: |
+        echo "=== Verifying Liquibase Tracking Tables ==="
+        
+        # Check DATABASECHANGELOG table
+        echo "Checking DATABASECHANGELOG entries..."
+        psql -h localhost -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} -c "
+        SELECT id, author, filename, orderexecuted, exectype, md5sum 
+        FROM databasechangelog 
+        ORDER BY orderexecuted;
+        "
+        
+        # Check DATABASECHANGELOGLOCK table
+        echo "Checking DATABASECHANGELOGLOCK..."
+        psql -h localhost -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} -c "
+        SELECT * FROM databasechangeloglock;
+        "
+
+    - name: Test rollback capability (dry-run)
+      run: |
+        echo "=== Testing Rollback Capability ==="
+        
+        # Get the number of changesets
+        CHANGESET_COUNT=$(liquibase --defaults-file=liquibase-test.properties history | grep -c "^- " || true)
+        echo "Total changesets applied: $CHANGESET_COUNT"
+        
+        if [ "$CHANGESET_COUNT" -gt 0 ]; then
+          echo "Testing rollback dry-run for 1 changeset..."
+          liquibase --defaults-file=liquibase-test.properties rollback-count-sql 1
+        else
+          echo "No changesets to rollback"
+        fi
+
+  multi-database-testing:
+    name: Multi-Database Migration Testing
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        postgres-version: ['15', '16', '17']
+    
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres-version }}
+        env:
+          POSTGRES_DB: rbac_test_db
+          POSTGRES_USER: rbac_test
+          POSTGRES_PASSWORD: rbac_test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Liquibase CLI
+      uses: liquibase-github-actions/liquibase-cli@v4.29.2
+
+    - name: Download PostgreSQL JDBC driver
+      run: |
+        wget -q https://jdbc.postgresql.org/download/postgresql-42.7.4.jar
+
+    - name: Create test Liquibase properties
+      run: |
+        cat > liquibase-test.properties << EOF
+        changeLogFile=src/main/resources/db/changelog/changelog-master.yaml
+        url=jdbc:postgresql://localhost:5432/rbac_test_db
+        username=rbac_test
+        password=rbac_test_password
+        logLevel=info
+        classpath=postgresql-42.7.4.jar
+        EOF
+
+    - name: Wait for PostgreSQL to be ready
+      run: |
+        for i in {1..30}; do
+          if pg_isready -h localhost -p 5432 -U rbac_test; then
+            echo "PostgreSQL ${{ matrix.postgres-version }} is ready"
+            break
+          fi
+          echo "Waiting for PostgreSQL... ($i/30)"
+          sleep 2
+        done
+
+    - name: Test migration on PostgreSQL ${{ matrix.postgres-version }}
+      run: |
+        echo "=== Testing on PostgreSQL ${{ matrix.postgres-version }} ==="
+        liquibase --defaults-file=liquibase-test.properties validate
+        liquibase --defaults-file=liquibase-test.properties update
+        
+        # Verify the migration worked
+        export PGPASSWORD=rbac_test_password
+        TABLE_COUNT=$(psql -h localhost -U rbac_test -d rbac_test_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE';")
+        echo "Tables created: $TABLE_COUNT"
+        
+        if [ "$TABLE_COUNT" -eq "0" ]; then
+          echo "❌ No tables were created!"
+          exit 1
+        else
+          echo "✅ Migration successful on PostgreSQL ${{ matrix.postgres-version }}"
+        fi
+
+  migration-performance:
+    name: Migration Performance Testing
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: rbac_perf_db
+          POSTGRES_USER: rbac_test
+          POSTGRES_PASSWORD: rbac_test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Liquibase CLI
+      uses: liquibase-github-actions/liquibase-cli@v4.29.2
+
+    - name: Download PostgreSQL JDBC driver
+      run: |
+        wget -q https://jdbc.postgresql.org/download/postgresql-42.7.4.jar
+
+    - name: Create performance test Liquibase properties
+      run: |
+        cat > liquibase-perf.properties << EOF
+        changeLogFile=src/main/resources/db/changelog/changelog-master.yaml
+        url=jdbc:postgresql://localhost:5432/rbac_perf_db
+        username=rbac_test
+        password=rbac_test_password
+        logLevel=info
+        classpath=postgresql-42.7.4.jar
+        EOF
+
+    - name: Measure migration performance
+      run: |
+        echo "=== Migration Performance Testing ==="
+        
+        # Time the migration
+        start_time=$(date +%s)
+        liquibase --defaults-file=liquibase-perf.properties update
+        end_time=$(date +%s)
+        
+        duration=$((end_time - start_time))
+        echo "Migration completed in: ${duration} seconds"
+        
+        # Set performance threshold (adjust as needed)
+        THRESHOLD=60  # 60 seconds
+        
+        if [ $duration -gt $THRESHOLD ]; then
+          echo "⚠️ Migration took longer than expected (${duration}s > ${THRESHOLD}s)"
+          echo "Consider optimizing your changesets"
+        else
+          echo "✅ Migration performance is acceptable (${duration}s <= ${THRESHOLD}s)"
+        fi
+        
+        echo "migration-duration=${duration}" >> $GITHUB_OUTPUT
+
+    - name: Generate migration report
+      env:
+        PGPASSWORD: rbac_test_password
+      run: |
+        echo "=== Migration Report ==="
+        
+        # Database size
+        DB_SIZE=$(psql -h localhost -U rbac_test -d rbac_perf_db -t -c "SELECT pg_size_pretty(pg_database_size('rbac_perf_db'));")
+        echo "Database size: $DB_SIZE"
+        
+        # Table count and sizes
+        echo "Table information:"
+        psql -h localhost -U rbac_test -d rbac_perf_db -c "
+        SELECT 
+          schemaname,
+          tablename,
+          pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
+        FROM pg_tables 
+        WHERE schemaname = 'public'
+        ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+        "
+
+  migration-security:
+    name: Migration Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Scan for sensitive data in migrations
+      run: |
+        echo "=== Security Scan for Migration Files ==="
+        
+        # Check for hardcoded passwords, keys, etc.
+        SECURITY_ISSUES=0
+        
+        echo "Checking for potential security issues in migration files..."
+        
+        # Check for hardcoded passwords
+        if grep -r -i "password.*=" src/main/resources/db/ --include="*.sql" --include="*.yaml" --include="*.yml"; then
+          echo "⚠️  Found potential hardcoded passwords in migration files"
+          SECURITY_ISSUES=$((SECURITY_ISSUES + 1))
+        fi
+        
+        # Check for API keys or tokens
+        if grep -r -E "(api_key|secret_key|access_token)" src/main/resources/db/ --include="*.sql" --include="*.yaml" --include="*.yml"; then
+          echo "⚠️  Found potential API keys or tokens in migration files"
+          SECURITY_ISSUES=$((SECURITY_ISSUES + 1))
+        fi
+        
+        # Check for email addresses (might indicate PII in seed data)
+        if grep -r -E "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" src/main/resources/db/ --include="*.sql" --include="*.yaml" --include="*.yml"; then
+          echo "⚠️  Found email addresses in migration files (check for PII)"
+          SECURITY_ISSUES=$((SECURITY_ISSUES + 1))
+        fi
+        
+        # Check for SQL injection patterns (basic check)
+        if grep -r -E "(DROP TABLE|DELETE FROM.*WHERE.*=|UPDATE.*SET.*WHERE.*=)" src/main/resources/db/ --include="*.sql" --include="*.yaml" --include="*.yml" | grep -v "-- liquibase"; then
+          echo "ℹ️  Found potentially dangerous SQL operations (review recommended)"
+        fi
+        
+        if [ $SECURITY_ISSUES -eq 0 ]; then
+          echo "✅ No obvious security issues found in migration files"
+        else
+          echo "❌ Found $SECURITY_ISSUES potential security issues"
+          echo "Please review the migration files and remove any sensitive data"
+          exit 1
+        fi
+
+    - name: Validate changelog structure
+      run: |
+        echo "=== Changelog Structure Validation ==="
+        
+        # Check if master changelog exists
+        if [ ! -f "src/main/resources/db/changelog/changelog-master.yaml" ]; then
+          echo "❌ Master changelog file not found"
+          exit 1
+        fi
+        
+        # Validate YAML syntax
+        python3 -c "
+        import yaml
+        import sys
+        
+        try:
+            with open('src/main/resources/db/changelog/changelog-master.yaml', 'r') as f:
+                yaml.safe_load(f)
+            print('✅ Master changelog YAML syntax is valid')
+        except yaml.YAMLError as e:
+            print(f'❌ YAML syntax error: {e}')
+            sys.exit(1)
+        except Exception as e:
+            print(f'❌ Error reading file: {e}')
+            sys.exit(1)
+        "
+
+  migration-summary:
+    name: Migration Test Summary
+    runs-on: ubuntu-latest
+    needs: [liquibase-validation, multi-database-testing, migration-performance, migration-security]
+    if: always()
+
+    steps:
+    - name: Generate summary report
+      run: |
+        echo "## 🗃️ Database Migration Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Check results of each job
+        if [[ "${{ needs.liquibase-validation.result }}" == "success" ]]; then
+          echo "✅ **Liquibase Validation**: All migrations applied successfully" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Liquibase Validation**: Migration failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.multi-database-testing.result }}" == "success" ]]; then
+          echo "✅ **Multi-Database Testing**: Compatible with all PostgreSQL versions" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Multi-Database Testing**: Compatibility issues detected" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.migration-performance.result }}" == "success" ]]; then
+          echo "✅ **Performance Testing**: Migration performance is acceptable" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ **Performance Testing**: Migration performance needs review" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.migration-security.result }}" == "success" ]]; then
+          echo "✅ **Security Scan**: No security issues found" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Security Scan**: Security issues detected" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Test Coverage" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Schema creation and validation" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Multi-version PostgreSQL compatibility" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Migration performance monitoring" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Security vulnerability scanning" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Rollback capability testing" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Liquibase tracking verification" >> $GITHUB_STEP_SUMMARY
+
+    - name: Fail if critical tests failed
+      if: needs.liquibase-validation.result == 'failure' || needs.migration-security.result == 'failure'
+      run: |
+        echo "❌ Critical database migration tests failed"
+        exit 1

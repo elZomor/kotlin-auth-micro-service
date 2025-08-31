@@ -1,0 +1,352 @@
+name: Test Coverage Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  test-coverage:
+    name: Test Coverage Analysis
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: rbac_test_db
+          POSTGRES_USER: rbac_test
+          POSTGRES_PASSWORD: rbac_test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Cache Gradle packages
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Wait for PostgreSQL to be ready
+      run: |
+        for i in {1..30}; do
+          if pg_isready -h localhost -p 5432 -U rbac_test; then
+            echo "PostgreSQL is ready"
+            break
+          fi
+          echo "Waiting for PostgreSQL... ($i/30)"
+          sleep 2
+        done
+
+    - name: Run tests with coverage
+      env:
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/rbac_test_db
+        SPRING_DATASOURCE_USERNAME: rbac_test
+        SPRING_DATASOURCE_PASSWORD: rbac_test_password
+        SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
+        JWT_SECRET: test-secret-key-for-coverage-testing-that-is-very-long-and-secure
+        JWT_ISSUER: coverage-test
+      run: |
+        echo "=== Running Tests with Coverage ==="
+        ./gradlew test jacocoTestReport --continue
+        
+        echo "=== Test Execution Summary ==="
+        if [ -f "build/test-results/test/TEST-*.xml" ]; then
+          echo "Test results found, processing..."
+        else
+          echo "No test results found in build/test-results/test/"
+          find build -name "TEST-*.xml" -type f 2>/dev/null || echo "No XML test files found"
+        fi
+
+    - name: Generate coverage reports
+      run: |
+        echo "=== Generating Coverage Reports ==="
+        ./gradlew jacocoTestReport
+        
+        # Verify coverage report was generated
+        if [ -f "build/reports/jacoco/test/jacocoTestReport.xml" ]; then
+          echo "✅ JaCoCo XML report generated"
+        else
+          echo "❌ JaCoCo XML report not found"
+          find build -name "*.xml" -path "*/jacoco/*" 2>/dev/null || echo "No JaCoCo XML files found"
+          exit 1
+        fi
+        
+        if [ -d "build/reports/jacoco/test/html" ]; then
+          echo "✅ JaCoCo HTML report generated"
+        else
+          echo "❌ JaCoCo HTML report not found"
+        fi
+
+    - name: Parse and validate coverage thresholds
+      id: coverage-check
+      run: |
+        echo "=== Coverage Threshold Validation ==="
+        
+        # Extract coverage data from JaCoCo XML report
+        if [ -f "build/reports/jacoco/test/jacocoTestReport.xml" ]; then
+          # Parse line coverage
+          LINE_COVERED=$(grep -o 'type="LINE".*missed="[0-9]*".*covered="[0-9]*"' build/reports/jacoco/test/jacocoTestReport.xml | head -1 | sed 's/.*covered="\([0-9]*\)".*/\1/')
+          LINE_MISSED=$(grep -o 'type="LINE".*missed="[0-9]*".*covered="[0-9]*"' build/reports/jacoco/test/jacocoTestReport.xml | head -1 | sed 's/.*missed="\([0-9]*\)".*/\1/')
+          
+          # Parse branch coverage
+          BRANCH_COVERED=$(grep -o 'type="BRANCH".*missed="[0-9]*".*covered="[0-9]*"' build/reports/jacoco/test/jacocoTestReport.xml | head -1 | sed 's/.*covered="\([0-9]*\)".*/\1/' || echo "0")
+          BRANCH_MISSED=$(grep -o 'type="BRANCH".*missed="[0-9]*".*covered="[0-9]*"' build/reports/jacoco/test/jacocoTestReport.xml | head -1 | sed 's/.*missed="\([0-9]*\)".*/\1/' || echo "0")
+          
+          # Parse instruction coverage
+          INSTRUCTION_COVERED=$(grep -o 'type="INSTRUCTION".*missed="[0-9]*".*covered="[0-9]*"' build/reports/jacoco/test/jacocoTestReport.xml | head -1 | sed 's/.*covered="\([0-9]*\)".*/\1/')
+          INSTRUCTION_MISSED=$(grep -o 'type="INSTRUCTION".*missed="[0-9]*".*covered="[0-9]*"' build/reports/jacoco/test/jacocoTestReport.xml | head -1 | sed 's/.*missed="\([0-9]*\)".*/\1/')
+          
+          # Calculate percentages
+          if [ "$LINE_COVERED" != "" ] && [ "$LINE_MISSED" != "" ]; then
+            LINE_TOTAL=$((LINE_COVERED + LINE_MISSED))
+            if [ $LINE_TOTAL -gt 0 ]; then
+              LINE_PERCENTAGE=$((LINE_COVERED * 100 / LINE_TOTAL))
+            else
+              LINE_PERCENTAGE=0
+            fi
+          else
+            LINE_PERCENTAGE=0
+          fi
+          
+          if [ "$BRANCH_COVERED" != "" ] && [ "$BRANCH_MISSED" != "" ] && [ $((BRANCH_COVERED + BRANCH_MISSED)) -gt 0 ]; then
+            BRANCH_TOTAL=$((BRANCH_COVERED + BRANCH_MISSED))
+            BRANCH_PERCENTAGE=$((BRANCH_COVERED * 100 / BRANCH_TOTAL))
+          else
+            BRANCH_PERCENTAGE=0
+          fi
+          
+          if [ "$INSTRUCTION_COVERED" != "" ] && [ "$INSTRUCTION_MISSED" != "" ]; then
+            INSTRUCTION_TOTAL=$((INSTRUCTION_COVERED + INSTRUCTION_MISSED))
+            if [ $INSTRUCTION_TOTAL -gt 0 ]; then
+              INSTRUCTION_PERCENTAGE=$((INSTRUCTION_COVERED * 100 / INSTRUCTION_TOTAL))
+            else
+              INSTRUCTION_PERCENTAGE=0
+            fi
+          else
+            INSTRUCTION_PERCENTAGE=0
+          fi
+          
+          echo "Coverage Results:"
+          echo "📊 Line Coverage: ${LINE_PERCENTAGE}% (${LINE_COVERED}/${LINE_TOTAL})"
+          echo "📊 Branch Coverage: ${BRANCH_PERCENTAGE}% (${BRANCH_COVERED}/${BRANCH_TOTAL})"
+          echo "📊 Instruction Coverage: ${INSTRUCTION_PERCENTAGE}% (${INSTRUCTION_COVERED}/${INSTRUCTION_TOTAL})"
+          
+          # Set output variables
+          echo "line-coverage=${LINE_PERCENTAGE}" >> $GITHUB_OUTPUT
+          echo "branch-coverage=${BRANCH_PERCENTAGE}" >> $GITHUB_OUTPUT
+          echo "instruction-coverage=${INSTRUCTION_PERCENTAGE}" >> $GITHUB_OUTPUT
+          
+          # Define thresholds
+          LINE_THRESHOLD=90
+          BRANCH_THRESHOLD=80
+          INSTRUCTION_THRESHOLD=90
+          
+          # Check thresholds
+          THRESHOLD_FAILED=0
+          
+          if [ $LINE_PERCENTAGE -lt $LINE_THRESHOLD ]; then
+            echo "❌ Line coverage ${LINE_PERCENTAGE}% is below threshold ${LINE_THRESHOLD}%"
+            THRESHOLD_FAILED=1
+          else
+            echo "✅ Line coverage ${LINE_PERCENTAGE}% meets threshold ${LINE_THRESHOLD}%"
+          fi
+          
+          if [ $BRANCH_PERCENTAGE -lt $BRANCH_THRESHOLD ]; then
+            echo "❌ Branch coverage ${BRANCH_PERCENTAGE}% is below threshold ${BRANCH_THRESHOLD}%"
+            THRESHOLD_FAILED=1
+          else
+            echo "✅ Branch coverage ${BRANCH_PERCENTAGE}% meets threshold ${BRANCH_THRESHOLD}%"
+          fi
+          
+          if [ $INSTRUCTION_PERCENTAGE -lt $INSTRUCTION_THRESHOLD ]; then
+            echo "❌ Instruction coverage ${INSTRUCTION_PERCENTAGE}% is below threshold ${INSTRUCTION_THRESHOLD}%"
+            THRESHOLD_FAILED=1
+          else
+            echo "✅ Instruction coverage ${INSTRUCTION_PERCENTAGE}% meets threshold ${INSTRUCTION_THRESHOLD}%"
+          fi
+          
+          echo "threshold-failed=${THRESHOLD_FAILED}" >> $GITHUB_OUTPUT
+          
+          if [ $THRESHOLD_FAILED -eq 1 ]; then
+            echo "❌ Coverage thresholds not met"
+            exit 1
+          else
+            echo "✅ All coverage thresholds met"
+          fi
+        else
+          echo "❌ JaCoCo report not found"
+          exit 1
+        fi
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: build/reports/jacoco/test/jacocoTestReport.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+    - name: Upload coverage to Codacy
+      uses: codacy/codacy-coverage-reporter-action@v1
+      continue-on-error: true
+      with:
+        project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+        coverage-reports: build/reports/jacoco/test/jacocoTestReport.xml
+
+    - name: Generate coverage badge
+      if: github.ref == 'refs/heads/main'
+      run: |
+        echo "=== Generating Coverage Badge ==="
+        LINE_COVERAGE="${{ steps.coverage-check.outputs.line-coverage }}"
+        
+        # Create coverage badge URL based on percentage
+        if [ $LINE_COVERAGE -ge 90 ]; then
+          COLOR="brightgreen"
+        elif [ $LINE_COVERAGE -ge 80 ]; then
+          COLOR="green"
+        elif [ $LINE_COVERAGE -ge 70 ]; then
+          COLOR="yellowgreen"
+        elif [ $LINE_COVERAGE -ge 60 ]; then
+          COLOR="yellow"
+        elif [ $LINE_COVERAGE -ge 50 ]; then
+          COLOR="orange"
+        else
+          COLOR="red"
+        fi
+        
+        echo "Coverage: ${LINE_COVERAGE}% (${COLOR})"
+        
+        # Create badge URL
+        BADGE_URL="https://img.shields.io/badge/coverage-${LINE_COVERAGE}%25-${COLOR}"
+        echo "Badge URL: $BADGE_URL"
+
+    - name: Upload test and coverage artifacts
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-coverage-reports
+        path: |
+          build/reports/jacoco/
+          build/reports/tests/
+          build/test-results/
+        retention-days: 30
+
+    - name: Comment PR with coverage results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const lineCoverage = '${{ steps.coverage-check.outputs.line-coverage }}';
+          const branchCoverage = '${{ steps.coverage-check.outputs.branch-coverage }}';
+          const instructionCoverage = '${{ steps.coverage-check.outputs.instruction-coverage }}';
+          const thresholdFailed = '${{ steps.coverage-check.outputs.threshold-failed }}';
+          
+          const coverageEmoji = thresholdFailed === '1' ? '❌' : '✅';
+          const statusText = thresholdFailed === '1' ? 'Coverage thresholds not met' : 'All coverage thresholds met';
+          
+          const comment = `## 📊 Test Coverage Report
+          
+          ${coverageEmoji} **${statusText}**
+          
+          | Coverage Type | Percentage | Threshold | Status |
+          |---------------|------------|-----------|--------|
+          | Line Coverage | ${lineCoverage}% | 90% | ${lineCoverage >= 90 ? '✅' : '❌'} |
+          | Branch Coverage | ${branchCoverage}% | 80% | ${branchCoverage >= 80 ? '✅' : '❌'} |
+          | Instruction Coverage | ${instructionCoverage}% | 90% | ${instructionCoverage >= 90 ? '✅' : '❌'} |
+          
+          ### 📈 Coverage Trends
+          - Line coverage is ${lineCoverage >= 90 ? 'excellent' : lineCoverage >= 80 ? 'good' : 'needs improvement'}
+          - Branch coverage is ${branchCoverage >= 80 ? 'excellent' : branchCoverage >= 70 ? 'good' : 'needs improvement'}
+          
+          ### 💡 Recommendations
+          ${thresholdFailed === '1' ? 
+            '- Add more unit tests to increase coverage\n- Focus on testing edge cases and error conditions\n- Consider adding integration tests for complex workflows' :
+            '- Great job maintaining high test coverage!\n- Continue adding tests for new features\n- Consider adding more edge case tests'
+          }
+          
+          📋 Detailed reports are available in the workflow artifacts.
+          `;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+  coverage-quality-gate:
+    name: Coverage Quality Gate
+    runs-on: ubuntu-latest
+    needs: test-coverage
+    if: always()
+
+    steps:
+    - name: Evaluate coverage quality gate
+      run: |
+        if [[ "${{ needs.test-coverage.result }}" == "success" ]]; then
+          echo "✅ Coverage Quality Gate: PASSED"
+          echo "All coverage thresholds have been met."
+          echo ""
+          echo "## 🎉 Quality Gate Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Line Coverage**: Above 90% threshold" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Branch Coverage**: Above 80% threshold" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Instruction Coverage**: Above 90% threshold" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Quality Gate**: PASSED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Coverage Quality Gate: FAILED"
+          echo "One or more coverage thresholds were not met."
+          echo ""
+          echo "## ❌ Quality Gate Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ **Coverage Thresholds**: Not all thresholds met" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ **Quality Gate**: FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Action Required:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Review the coverage report" >> $GITHUB_STEP_SUMMARY
+          echo "2. Add tests for uncovered code" >> $GITHUB_STEP_SUMMARY
+          echo "3. Focus on critical paths and edge cases" >> $GITHUB_STEP_SUMMARY
+          echo "4. Re-run tests after improvements" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
+
+    - name: Post coverage status
+      if: always()
+      run: |
+        echo "=== Final Coverage Status ==="
+        echo "Test Coverage Job: ${{ needs.test-coverage.result }}"
+        
+        if [[ "${{ needs.test-coverage.result }}" == "success" ]]; then
+          echo "🎯 Coverage targets achieved!"
+          echo "📊 Quality metrics satisfied"
+          echo "🚀 Ready for deployment"
+        else
+          echo "⚠️  Coverage targets not met"
+          echo "📈 Improvement needed"
+          echo "🔧 Additional testing required"
+        fi

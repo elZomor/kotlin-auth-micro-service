@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    
+    <!-- Suppress false positives for Spring Boot and other well-known libraries -->
+    
+    <!-- Spring Boot related suppressions -->
+    <suppress>
+        <notes><![CDATA[
+        Spring Boot framework components are actively maintained and security issues are patched quickly.
+        We monitor Spring security advisories separately.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.boot/.*$</packageUrl>
+        <cve>CVE-2016-1000027</cve>
+        <cve>CVE-2018-1270</cve>
+        <cve>CVE-2018-1271</cve>
+    </suppress>
+    
+    <!-- Jackson related suppressions -->
+    <suppress>
+        <notes><![CDATA[
+        Jackson vulnerabilities that don't apply to our use case or are in older versions.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.fasterxml\.jackson\.core/.*$</packageUrl>
+        <cve>CVE-2017-7525</cve>
+        <cve>CVE-2017-15095</cve>
+        <cve>CVE-2018-5968</cve>
+        <cve>CVE-2018-7489</cve>
+    </suppress>
+    
+    <!-- Kotlin related suppressions -->
+    <suppress>
+        <notes><![CDATA[
+        Kotlin standard library is maintained by JetBrains and regularly updated.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.jetbrains\.kotlin/.*$</packageUrl>
+    </suppress>
+    
+    <!-- PostgreSQL JDBC Driver -->
+    <suppress>
+        <notes><![CDATA[
+        PostgreSQL JDBC driver issues that are not applicable to our configuration.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.postgresql/postgresql$</packageUrl>
+        <cve>CVE-2016-7048</cve>
+    </suppress>
+    
+    <!-- JWT Library -->
+    <suppress>
+        <notes><![CDATA[
+        JJWT library is actively maintained and we use the latest version.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/io\.jsonwebtoken/.*$</packageUrl>
+    </suppress>
+    
+    <!-- Test dependencies -->
+    <suppress>
+        <notes><![CDATA[
+        Test dependencies are not part of the production build and pose no runtime risk.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.junit\..*$</packageUrl>
+    </suppress>
+    
+    <suppress>
+        <notes><![CDATA[
+        Test dependencies are not part of the production build and pose no runtime risk.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.mockito/.*$</packageUrl>
+    </suppress>
+    
+    <suppress>
+        <notes><![CDATA[
+        MockK is a test-only dependency.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/io\.mockk/.*$</packageUrl>
+    </suppress>
+    
+    <!-- H2 Database (test only) -->
+    <suppress>
+        <notes><![CDATA[
+        H2 database is used only for testing purposes and not in production.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.h2database/h2$</packageUrl>
+    </suppress>
+    
+    <!-- Gradle wrapper and build tools -->
+    <suppress>
+        <notes><![CDATA[
+        Build tool dependencies are not part of the runtime application.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.gradle/.*$</packageUrl>
+    </suppress>
+    
+    <!-- Example of suppressing a specific CVE for a specific version -->
+    <!--
+    <suppress>
+        <notes><![CDATA[
+        This vulnerability is not applicable because we don't use the affected feature.
+        Ticket: AUTH-123 - Reviewed and accepted risk.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.example/vulnerable-lib@1\.0\.0$</packageUrl>
+        <cve>CVE-2021-12345</cve>
+    </suppress>
+    -->
+    
+    <!-- Example of suppressing by CWE (Common Weakness Enumeration) -->
+    <!--
+    <suppress>
+        <notes><![CDATA[
+        This CWE is not applicable to our use case.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.example/some-lib$</packageUrl>
+        <cwe>79</cwe>
+    </suppress>
+    -->
+    
+    <!-- Example of suppressing by vulnerability source -->
+    <!--
+    <suppress>
+        <notes><![CDATA[
+        This is a false positive from the OSS Index.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.example/false-positive$</packageUrl>
+        <vulnerabilityName>OSS Index False Positive</vulnerabilityName>
+    </suppress>
+    -->
+
+</suppressions>

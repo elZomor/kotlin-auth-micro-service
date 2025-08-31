@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: rbac-base-kt
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/rbac_db
+    username: rbac
+    password: rbac
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc.time_zone: UTC
+
+  liquibase:
+    change-log: classpath:db/changelog/changelog-master.yaml
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET:changeme-please-very-long-random}
+  issuer: ${JWT_ISSUER:rbac-base}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+
+  liquibase:
+    enabled: false
