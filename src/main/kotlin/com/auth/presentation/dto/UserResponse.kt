@@ -1,7 +1,7 @@
 package com.auth.presentation.dto
 
 import java.time.OffsetDateTime
-import java.util.*
+import java.util.UUID
 
 /**
  * DTO for user responses (without password)
@@ -13,5 +13,5 @@ data class UserResponse(
     val enabled: Boolean,
     val createdAt: OffsetDateTime?,
     val updatedAt: OffsetDateTime?,
-    val roles: List<String> = emptyList()
+    val roles: List<String> = emptyList(),
 )

@@ -1,7 +1,6 @@
 package com.auth.infrastructure.security
 
 import io.jsonwebtoken.ExpiredJwtException
-import io.jsonwebtoken.security.SignatureException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -11,7 +10,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class JwtServiceTest {
-
     private lateinit var jwtService: JwtService
     private val testSecret = "test-secret-key-that-is-very-long-and-secure-for-testing-purposes-only"
     private val testIssuer = "test-issuer"
@@ -34,7 +32,7 @@ class JwtServiceTest {
         // Then
         assertNotNull(token)
         assertTrue(token.isNotBlank())
-        
+
         // Verify token can be parsed
         val claims = jwtService.parse(token)
         assertEquals(subject, claims.payload.subject)
@@ -100,7 +98,7 @@ class JwtServiceTest {
         // Then
         assertNotNull(refreshToken)
         assertTrue(refreshToken.isNotBlank())
-        
+
         // Verify refresh token properties
         val claims = jwtService.parse(refreshToken)
         assertEquals(subject, claims.payload.subject)
@@ -121,7 +119,7 @@ class JwtServiceTest {
         assertNotNull(refreshToken)
         val claims = jwtService.parse(refreshToken)
         assertEquals("refresh", claims.payload["type"])
-        
+
         // Check that expiration is approximately 7 days from now
         val expectedExpiration = System.currentTimeMillis() + (7 * 24 * 3600 * 1000L)
         val actualExpiration = claims.payload.expiration.time
@@ -162,7 +160,7 @@ class JwtServiceTest {
         // Then
         assertNotNull(accessToken)
         val claims = jwtService.parse(accessToken)
-        
+
         // Check that expiration is approximately 1 hour from now
         val expectedExpiration = System.currentTimeMillis() + (3600 * 1000L)
         val actualExpiration = claims.payload.expiration.time
@@ -178,9 +176,10 @@ class JwtServiceTest {
         val authorities = listOf("ROLE_USER")
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            jwtService.generateAccessTokenFromRefreshToken(regularToken, authorities)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                jwtService.generateAccessTokenFromRefreshToken(regularToken, authorities)
+            }
 
         assertEquals("Invalid refresh token type", exception.message)
     }

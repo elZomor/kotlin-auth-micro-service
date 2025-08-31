@@ -6,21 +6,21 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class TokenResponseTest {
-
     @Test
     fun `should create token response with all fields`() {
         // Given & When
-        val tokenResponse = TestDataFactory.createTokenResponse(
-            accessToken = "access-token-123",
-            refreshToken = "refresh-token-456",
-            type = "Bearer",
-            expiresIn = 3600
-        )
+        val tokenResponse =
+            TestDataFactory.createTokenResponse(
+                accessToken = "access-token-123",
+                refreshToken = "refresh-token-456",
+                tokenType = "Bearer",
+                expiresIn = 3600,
+            )
 
         // Then
         assertEquals("access-token-123", tokenResponse.accessToken)
         assertEquals("refresh-token-456", tokenResponse.refreshToken)
-        assertEquals("Bearer", tokenResponse.type)
+        assertEquals("Bearer", tokenResponse.tokenType)
         assertEquals(3600, tokenResponse.expiresIn)
     }
 
@@ -32,7 +32,7 @@ class TokenResponseTest {
         // Then
         assertEquals("access-token", tokenResponse.accessToken)
         assertEquals("refresh-token", tokenResponse.refreshToken)
-        assertEquals("Bearer", tokenResponse.type)
+        assertEquals("Bearer", tokenResponse.tokenType)
         assertEquals(3600, tokenResponse.expiresIn)
     }
 
@@ -40,32 +40,35 @@ class TokenResponseTest {
     fun `should support data class operations`() {
         // Given
         val original = TestDataFactory.createTokenResponse(accessToken = "original-token")
-        
+
         // When
         val modified = original.copy(accessToken = "new-token")
 
         // Then
         assertEquals("new-token", modified.accessToken)
         assertEquals(original.refreshToken, modified.refreshToken)
-        assertEquals(original.type, modified.type)
+        assertEquals(original.tokenType, modified.tokenType)
         assertEquals(original.expiresIn, modified.expiresIn)
     }
 
     @Test
     fun `should have proper equals and hashCode`() {
         // Given
-        val response1 = TestDataFactory.createTokenResponse(
-            accessToken = "token123",
-            refreshToken = "refresh123"
-        )
-        val response2 = TestDataFactory.createTokenResponse(
-            accessToken = "token123",
-            refreshToken = "refresh123"
-        )
-        val response3 = TestDataFactory.createTokenResponse(
-            accessToken = "different-token",
-            refreshToken = "refresh123"
-        )
+        val response1 =
+            TestDataFactory.createTokenResponse(
+                accessToken = "token123",
+                refreshToken = "refresh123",
+            )
+        val response2 =
+            TestDataFactory.createTokenResponse(
+                accessToken = "token123",
+                refreshToken = "refresh123",
+            )
+        val response3 =
+            TestDataFactory.createTokenResponse(
+                accessToken = "different-token",
+                refreshToken = "refresh123",
+            )
 
         // Then
         assertEquals(response1, response2)
@@ -76,14 +79,14 @@ class TokenResponseTest {
     @Test
     fun `should handle different token types`() {
         // Given
-        val bearerResponse = TestDataFactory.createTokenResponse(type = "Bearer")
-        val basicResponse = TestDataFactory.createTokenResponse(type = "Basic")
-        val customResponse = TestDataFactory.createTokenResponse(type = "Custom")
+        val bearerResponse = TestDataFactory.createTokenResponse(tokenType = "Bearer")
+        val basicResponse = TestDataFactory.createTokenResponse(tokenType = "Basic")
+        val customResponse = TestDataFactory.createTokenResponse(tokenType = "Custom")
 
         // Then
-        assertEquals("Bearer", bearerResponse.type)
-        assertEquals("Basic", basicResponse.type)
-        assertEquals("Custom", customResponse.type)
+        assertEquals("Bearer", bearerResponse.tokenType)
+        assertEquals("Basic", basicResponse.tokenType)
+        assertEquals("Custom", customResponse.tokenType)
     }
 
     @Test
@@ -104,12 +107,13 @@ class TokenResponseTest {
         // Given
         val longAccessToken = "a".repeat(1000)
         val longRefreshToken = "b".repeat(1500)
-        
+
         // When
-        val tokenResponse = TestDataFactory.createTokenResponse(
-            accessToken = longAccessToken,
-            refreshToken = longRefreshToken
-        )
+        val tokenResponse =
+            TestDataFactory.createTokenResponse(
+                accessToken = longAccessToken,
+                refreshToken = longRefreshToken,
+            )
 
         // Then
         assertEquals(longAccessToken, tokenResponse.accessToken)
@@ -121,12 +125,13 @@ class TokenResponseTest {
     @Test
     fun `should have meaningful toString representation`() {
         // Given
-        val tokenResponse = TestDataFactory.createTokenResponse(
-            accessToken = "access123",
-            refreshToken = "refresh456",
-            type = "Bearer",
-            expiresIn = 3600
-        )
+        val tokenResponse =
+            TestDataFactory.createTokenResponse(
+                accessToken = "access123",
+                refreshToken = "refresh456",
+                tokenType = "Bearer",
+                expiresIn = 3600,
+            )
 
         // When
         val stringRepresentation = tokenResponse.toString()

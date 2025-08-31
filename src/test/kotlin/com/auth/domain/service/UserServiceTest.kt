@@ -1,26 +1,29 @@
 package com.auth.domain.service
 
 import com.auth.common.TestDataFactory
-import com.auth.domain.model.User
+import com.auth.domain.model.UserRolesPermissionsGeneralModel
 import com.auth.infrastructure.persistence.RoleRepo
 import com.auth.infrastructure.persistence.UserRepo
 import com.auth.infrastructure.persistence.UserRolePermissionGeneralModelRepo
-import io.mockk.*
+import io.mockk.clearAllMocks
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.security.crypto.password.PasswordEncoder
-import java.util.*
+import java.util.Optional
+import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class UserServiceTest {
-
     private val userRepo = mockk<UserRepo>()
     private val roleRepo = mockk<RoleRepo>()
     private val userRolePermissionRepo = mockk<UserRolePermissionGeneralModelRepo>()
     private val passwordEncoder = mockk<PasswordEncoder>()
-    
+
     private lateinit var userService: UserService
 
     @BeforeEach
@@ -86,10 +89,11 @@ class UserServiceTest {
     fun `permissionsOf should return user permissions`() {
         // Given
         val user = TestDataFactory.createUser(email = "test@example.com")
-        val permissions = listOf(
-            mockk { every { permissionName } returns "READ_USER" },
-            mockk { every { permissionName } returns "WRITE_USER" }
-        )
+        val permissions =
+            listOf(
+                mockk<UserRolesPermissionsGeneralModel> { every { permissionName } returns "READ_USER" },
+                mockk<UserRolesPermissionsGeneralModel> { every { permissionName } returns "WRITE_USER" },
+            )
 
         every { userRolePermissionRepo.findByEmailIgnoreCase(user.email) } returns permissions
 
@@ -124,12 +128,16 @@ class UserServiceTest {
         verify { userRepo.findByEmailIgnoreCase(email) }
         verify { passwordEncoder.encode(password) }
         verify { roleRepo.findByNameIgnoreCase("USER") }
-        verify { userRepo.save(match { 
-            it.email == email && 
-            it.username == username && 
-            it.password == encodedPassword &&
-            it.enabled == true 
-        }) }
+        verify {
+            userRepo.save(
+                match {
+                    it.email == email &&
+                        it.username == username &&
+                        it.password == encodedPassword &&
+                        it.enabled == true
+                },
+            )
+        }
     }
 
     @Test
@@ -142,9 +150,10 @@ class UserServiceTest {
         every { userRepo.findByEmailIgnoreCase(email) } returns Optional.of(existingUser)
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            userService.createUser(email, password)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                userService.createUser(email, password)
+            }
 
         assertEquals("User with email $email already exists", exception.message)
         verify { userRepo.findByEmailIgnoreCase(email) }
@@ -161,9 +170,10 @@ class UserServiceTest {
         every { roleRepo.findByNameIgnoreCase("USER") } returns Optional.empty()
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            userService.createUser(email, password)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                userService.createUser(email, password)
+            }
 
         assertEquals("Default USER role not found", exception.message)
         verify { userRepo.findByEmailIgnoreCase(email) }
@@ -202,9 +212,10 @@ class UserServiceTest {
         every { userRepo.findByEmailIgnoreCase(email) } returns Optional.empty()
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            userService.updateUsername(email, newUsername)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                userService.updateUsername(email, newUsername)
+            }
 
         assertEquals("User not found with email: $email", exception.message)
         verify { userRepo.findByEmailIgnoreCase(email) }

@@ -5,6 +5,9 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  permissions:
+    contents: read
+    security-events: write
 
 jobs:
   code-formatting:
@@ -191,15 +194,9 @@ jobs:
         done
     
     - name: Validate Markdown files
-      uses: DavidAnson/markdownlint-action@v1
+      uses: DavidAnson/markdownlint-cli2-action@v20
       with:
-        files: '**/*.md'
-        config: |
-          {
-            "MD013": { "line_length": 120 },
-            "MD041": false,
-            "MD033": false
-          }
+        globs: '**/*.md'
         continue-on-error: true
     
     - name: Check for TODO comments in production code
@@ -225,7 +222,7 @@ jobs:
       uses: actions/checkout@v4
     
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@0.24.0
       with:
         scan-type: 'fs'
         scan-ref: '.'

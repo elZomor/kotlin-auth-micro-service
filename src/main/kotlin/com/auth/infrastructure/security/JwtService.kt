@@ -18,7 +18,11 @@ class JwtService(
 ) {
     private val key: SecretKey = Keys.hmacShaKeyFor(secret.toByteArray())
 
-    fun generate(subject: String, authorities: Collection<String>, ttlSeconds: Long): String {
+    fun generate(
+        subject: String,
+        authorities: Collection<String>,
+        ttlSeconds: Long,
+    ): String {
         val now = Instant.now()
         return Jwts.builder()
             .id(UUID.randomUUID().toString())
@@ -37,7 +41,10 @@ class JwtService(
             .build()
             .parseSignedClaims(token)
 
-    fun generateRefreshToken(subject: String, ttlSeconds: Long = 7 * 24 * 3600): String {
+    fun generateRefreshToken(
+        subject: String,
+        ttlSeconds: Long = 7 * 24 * 3600,
+    ): String {
         val now = Instant.now()
         return Jwts.builder()
             .id(UUID.randomUUID().toString())
@@ -50,15 +57,19 @@ class JwtService(
             .compact()
     }
 
-    fun generateAccessTokenFromRefreshToken(refreshToken: String, authorities: Collection<String>, ttlSeconds: Long = 3600): String {
+    fun generateAccessTokenFromRefreshToken(
+        refreshToken: String,
+        authorities: Collection<String>,
+        ttlSeconds: Long = 3600,
+    ): String {
         val claims = parse(refreshToken)
         val subject = claims.payload.subject
         val tokenType = claims.payload["type"] as? String
-        
+
         if (tokenType != "refresh") {
             throw IllegalArgumentException("Invalid refresh token type")
         }
-        
+
         return generate(subject, authorities, ttlSeconds)
     }
 

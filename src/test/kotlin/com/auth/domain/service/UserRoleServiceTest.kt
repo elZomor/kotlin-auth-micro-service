@@ -4,15 +4,20 @@ import com.auth.common.TestDataFactory
 import com.auth.infrastructure.persistence.RoleRepo
 import com.auth.infrastructure.persistence.UserRepo
 import com.auth.infrastructure.persistence.UserRoleRepo
-import io.mockk.*
+import io.mockk.Runs
+import io.mockk.clearAllMocks
+import io.mockk.every
+import io.mockk.just
+import io.mockk.mockk
+import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.util.*
+import java.util.Optional
+import java.util.UUID
 import kotlin.test.assertEquals
 
 class UserRoleServiceTest {
-
     private val userRepo = mockk<UserRepo>()
     private val roleRepo = mockk<RoleRepo>()
     private val userRoleRepo = mockk<UserRoleRepo>()
@@ -58,9 +63,10 @@ class UserRoleServiceTest {
         every { userRepo.findById(userId) } returns Optional.empty()
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            userRoleService.assignUserToRole(userId, roleId)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                userRoleService.assignUserToRole(userId, roleId)
+            }
 
         assertEquals("User not found with ID: $userId", exception.message)
         verify { userRepo.findById(userId) }
@@ -79,9 +85,10 @@ class UserRoleServiceTest {
         every { roleRepo.findById(roleId) } returns Optional.empty()
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            userRoleService.assignUserToRole(userId, roleId)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                userRoleService.assignUserToRole(userId, roleId)
+            }
 
         assertEquals("Role not found with ID: $roleId", exception.message)
         verify { userRepo.findById(userId) }
@@ -102,9 +109,10 @@ class UserRoleServiceTest {
         every { userRoleRepo.existsByUserIdAndRoleId(userId, roleId) } returns true
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            userRoleService.assignUserToRole(userId, roleId)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                userRoleService.assignUserToRole(userId, roleId)
+            }
 
         assertEquals("User $userId is already assigned to role $roleId", exception.message)
         verify { userRepo.findById(userId) }
@@ -139,9 +147,10 @@ class UserRoleServiceTest {
         every { userRoleRepo.existsByUserIdAndRoleId(userId, roleId) } returns false
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            userRoleService.removeUserFromRole(userId, roleId)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                userRoleService.removeUserFromRole(userId, roleId)
+            }
 
         assertEquals("User $userId is not assigned to role $roleId", exception.message)
         verify { userRoleRepo.existsByUserIdAndRoleId(userId, roleId) }
@@ -152,10 +161,11 @@ class UserRoleServiceTest {
     fun `getUserRoles should return all roles for user`() {
         // Given
         val userId = UUID.randomUUID()
-        val userRoles = listOf(
-            TestDataFactory.createUserRole(userId = userId, roleId = UUID.randomUUID()),
-            TestDataFactory.createUserRole(userId = userId, roleId = UUID.randomUUID())
-        )
+        val userRoles =
+            listOf(
+                TestDataFactory.createUserRole(userId = userId, roleId = UUID.randomUUID()),
+                TestDataFactory.createUserRole(userId = userId, roleId = UUID.randomUUID()),
+            )
 
         every { userRoleRepo.findByUserId(userId) } returns userRoles
 
@@ -171,10 +181,11 @@ class UserRoleServiceTest {
     fun `getRoleUsers should return all users for role`() {
         // Given
         val roleId = UUID.randomUUID()
-        val userRoles = listOf(
-            TestDataFactory.createUserRole(userId = UUID.randomUUID(), roleId = roleId),
-            TestDataFactory.createUserRole(userId = UUID.randomUUID(), roleId = roleId)
-        )
+        val userRoles =
+            listOf(
+                TestDataFactory.createUserRole(userId = UUID.randomUUID(), roleId = roleId),
+                TestDataFactory.createUserRole(userId = UUID.randomUUID(), roleId = roleId),
+            )
 
         every { userRoleRepo.findByRoleId(roleId) } returns userRoles
 

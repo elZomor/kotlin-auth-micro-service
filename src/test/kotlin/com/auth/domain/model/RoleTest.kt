@@ -1,13 +1,15 @@
 package com.auth.domain.model
 
 import com.auth.common.TestDataFactory
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.*
 import java.time.OffsetDateTime
-import java.util.*
+import java.util.UUID
 
 class RoleTest {
-
     @Test
     fun `should create role with all fields`() {
         // Given
@@ -17,12 +19,13 @@ class RoleTest {
         val updatedAt = OffsetDateTime.now()
 
         // When
-        val role = Role(
-            id = id,
-            name = name,
-            createdAt = createdAt,
-            updatedAt = updatedAt
-        )
+        val role =
+            Role(
+                id = id,
+                name = name,
+                createdAt = createdAt,
+                updatedAt = updatedAt,
+            )
 
         // Then
         assertEquals(id, role.id)
@@ -85,7 +88,7 @@ class RoleTest {
         assertEquals("ADMIN", adminRole.name)
         assertEquals("USER", userRole.name)
         assertEquals("MODERATOR", moderatorRole.name)
-        
+
         assertNotEquals(adminRole, userRole)
         assertNotEquals(userRole, moderatorRole)
     }

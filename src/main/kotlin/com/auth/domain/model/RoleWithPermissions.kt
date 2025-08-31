@@ -1,7 +1,7 @@
 package com.auth.domain.model
 
 import java.time.OffsetDateTime
-import java.util.*
+import java.util.UUID
 
 /**
  * Enhanced role model that includes associated permissions
@@ -12,5 +12,5 @@ data class RoleWithPermissions(
     val name: String,
     val createdAt: OffsetDateTime?,
     val updatedAt: OffsetDateTime?,
-    val permissions: List<Permission> = emptyList()
+    val permissions: List<Permission> = emptyList(),
 )

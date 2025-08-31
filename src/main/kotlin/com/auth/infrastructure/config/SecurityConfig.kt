@@ -21,16 +21,20 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @Configuration
 @EnableMethodSecurity
 class SecurityConfig(
-    private val userDetailsService: AppUserDetailsService
+    private val userDetailsService: AppUserDetailsService,
 ) {
     @Bean
-    fun filterChain(http: HttpSecurity, jwt: JwtAuthFilter): SecurityFilterChain {
+    fun filterChain(
+        http: HttpSecurity,
+        jwt: JwtAuthFilter,
+    ): SecurityFilterChain {
         http
             .csrf { it.disable() }
             .cors { it.configurationSource(corsConfigurationSource()) }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
-                auth.requestMatchers("/actuator/health", "/auth/login", "/auth/**").permitAll()
+                auth.requestMatchers("/actuator/health", "/auth/login", "/auth/signup", "/auth/refresh").permitAll()
+                    .requestMatchers("/auth/me", "/auth/logout", "/auth/username").authenticated()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(jwt, BasicAuthenticationFilter::class.java)
@@ -44,7 +48,7 @@ class SecurityConfig(
         configuration.allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
         configuration.allowedHeaders = listOf("*")
         configuration.allowCredentials = true
-        
+
         val source = UrlBasedCorsConfigurationSource()
         source.registerCorsConfiguration("/**", configuration)
         return source
@@ -52,15 +56,14 @@ class SecurityConfig(
 
     @Bean
     fun authenticationProvider(): DaoAuthenticationProvider {
-        val authProvider = DaoAuthenticationProvider()
-        authProvider.setUserDetailsService(userDetailsService)
+        val authProvider = DaoAuthenticationProvider(userDetailsService)
         authProvider.setPasswordEncoder(passwordEncoder())
         return authProvider
     }
 
-    @Bean 
+    @Bean
     fun authenticationManager(cfg: AuthenticationConfiguration): AuthenticationManager = cfg.authenticationManager
-    
-    @Bean 
+
+    @Bean
     fun passwordEncoder(): PasswordEncoder = BCryptPasswordEncoder(10)
 }

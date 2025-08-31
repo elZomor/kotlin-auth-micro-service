@@ -11,5 +11,5 @@ data class RolePermission(
     @Id
     val id: UUID = UUID.randomUUID(),
     val roleId: UUID,
-    val permissionId: UUID
+    val permissionId: UUID,
 )

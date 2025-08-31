@@ -13,27 +13,29 @@ import org.springframework.stereotype.Service
 @Service
 class AppUserDetailsService(
     private val userRolePermissionGeneralModelRepo: UserRolePermissionGeneralModelRepo,
-    private val userRepo: UserRepo
+    private val userRepo: UserRepo,
 ) : UserDetailsService {
     private val logger = LoggerFactory.getLogger(AppUserDetailsService::class.java)
-    
+
     override fun loadUserByUsername(email: String): UserDetails {
         logger.info("Loading user by username: $email")
-        
-        val user = userRepo.findByEmailIgnoreCase(email).orElseThrow { 
-            logger.error("User not found: $email")
-            UsernameNotFoundException("User not found: $email") 
-        }
-        
+
+        val user =
+            userRepo.findByEmailIgnoreCase(email).orElseThrow {
+                logger.error("User not found: $email")
+                UsernameNotFoundException("User not found: $email")
+            }
+
         logger.info("User found: ${user.email}, enabled: ${user.enabled}")
         logger.debug("User password hash: ${user.password}")
-        
+
         val userRolePermissionGeneralModel = userRolePermissionGeneralModelRepo.findByEmailIgnoreCase(email)
-        val permissions = userRolePermissionGeneralModel
-            .map { userRole -> userRole.permissionName }
-            .toSet()
-            .map { SimpleGrantedAuthority(it) }
-        
+        val permissions =
+            userRolePermissionGeneralModel
+                .map { userRole -> userRole.permissionName }
+                .toSet()
+                .map { SimpleGrantedAuthority(it) }
+
         logger.info("User permissions: ${permissions.map { it.authority }}")
 
         return User

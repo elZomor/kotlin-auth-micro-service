@@ -2,15 +2,20 @@ package com.auth.domain.service
 
 import com.auth.common.TestDataFactory
 import com.auth.infrastructure.persistence.RoleRepo
-import io.mockk.*
+import io.mockk.Runs
+import io.mockk.clearAllMocks
+import io.mockk.every
+import io.mockk.just
+import io.mockk.mockk
+import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.util.*
+import java.util.Optional
+import java.util.UUID
 import kotlin.test.assertEquals
 
 class RoleServiceTest {
-
     private val roleRepo = mockk<RoleRepo>()
     private lateinit var roleService: RoleService
 
@@ -35,11 +40,15 @@ class RoleServiceTest {
         // Then
         assertEquals(savedRole, result)
         verify { roleRepo.existsByNameIgnoreCase(roleName) }
-        verify { roleRepo.save(match { 
-            it.name == roleName && 
-            it.createdAt != null && 
-            it.updatedAt != null 
-        }) }
+        verify {
+            roleRepo.save(
+                match {
+                    it.name == roleName &&
+                        it.createdAt != null &&
+                        it.updatedAt != null
+                },
+            )
+        }
     }
 
     @Test
@@ -50,9 +59,10 @@ class RoleServiceTest {
         every { roleRepo.existsByNameIgnoreCase(roleName) } returns true
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            roleService.createRole(roleName)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                roleService.createRole(roleName)
+            }
 
         assertEquals("Role with name '$roleName' already exists", exception.message)
         verify { roleRepo.existsByNameIgnoreCase(roleName) }
@@ -62,11 +72,12 @@ class RoleServiceTest {
     @Test
     fun `getAllRoles should return all roles`() {
         // Given
-        val roles = listOf(
-            TestDataFactory.createRole(name = "ADMIN"),
-            TestDataFactory.createRole(name = "USER"),
-            TestDataFactory.createRole(name = "MODERATOR")
-        )
+        val roles =
+            listOf(
+                TestDataFactory.createRole(name = "ADMIN"),
+                TestDataFactory.createRole(name = "USER"),
+                TestDataFactory.createRole(name = "MODERATOR"),
+            )
 
         every { roleRepo.findAll() } returns roles
 
@@ -102,9 +113,10 @@ class RoleServiceTest {
         every { roleRepo.findById(roleId) } returns Optional.empty()
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            roleService.getRoleById(roleId)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                roleService.getRoleById(roleId)
+            }
 
         assertEquals("Role not found with ID: $roleId", exception.message)
         verify { roleRepo.findById(roleId) }
@@ -134,9 +146,10 @@ class RoleServiceTest {
         every { roleRepo.findByNameIgnoreCase(roleName) } returns Optional.empty()
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            roleService.getRoleByName(roleName)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                roleService.getRoleByName(roleName)
+            }
 
         assertEquals("Role not found with name: $roleName", exception.message)
         verify { roleRepo.findByNameIgnoreCase(roleName) }
@@ -162,11 +175,15 @@ class RoleServiceTest {
         assertEquals(updatedRole, result)
         verify { roleRepo.findById(roleId) }
         verify { roleRepo.existsByNameIgnoreCase(newName) }
-        verify { roleRepo.save(match { 
-            it.id == roleId && 
-            it.name == newName && 
-            it.updatedAt != null 
-        }) }
+        verify {
+            roleRepo.save(
+                match {
+                    it.id == roleId &&
+                        it.name == newName &&
+                        it.updatedAt != null
+                },
+            )
+        }
     }
 
     @Test
@@ -200,9 +217,10 @@ class RoleServiceTest {
         every { roleRepo.findById(roleId) } returns Optional.empty()
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            roleService.updateRole(roleId, newName)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                roleService.updateRole(roleId, newName)
+            }
 
         assertEquals("Role not found with ID: $roleId", exception.message)
         verify { roleRepo.findById(roleId) }
@@ -221,9 +239,10 @@ class RoleServiceTest {
         every { roleRepo.existsByNameIgnoreCase(newName) } returns true
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            roleService.updateRole(roleId, newName)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                roleService.updateRole(roleId, newName)
+            }
 
         assertEquals("Role with name '$newName' already exists", exception.message)
         verify { roleRepo.findById(roleId) }
@@ -255,9 +274,10 @@ class RoleServiceTest {
         every { roleRepo.existsById(roleId) } returns false
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            roleService.deleteRole(roleId)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                roleService.deleteRole(roleId)
+            }
 
         assertEquals("Role not found with ID: $roleId", exception.message)
         verify { roleRepo.existsById(roleId) }

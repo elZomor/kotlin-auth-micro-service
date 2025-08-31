@@ -11,5 +11,5 @@ data class UserRole(
     @Id
     val id: UUID = UUID.randomUUID(),
     val userId: UUID,
-    val roleId: UUID
+    val roleId: UUID,
 )

@@ -9,7 +9,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class LoginRequestTest {
-
     private lateinit var validator: Validator
 
     @BeforeEach
@@ -20,10 +19,11 @@ class LoginRequestTest {
     @Test
     fun `should create valid login request`() {
         // Given & When
-        val loginRequest = TestDataFactory.createLoginRequest(
-            email = "test@example.com",
-            password = "password123"
-        )
+        val loginRequest =
+            TestDataFactory.createLoginRequest(
+                email = "test@example.com",
+                password = "password123",
+            )
 
         // Then
         assertEquals("test@example.com", loginRequest.email)
@@ -33,10 +33,11 @@ class LoginRequestTest {
     @Test
     fun `should validate valid login request`() {
         // Given
-        val loginRequest = TestDataFactory.createLoginRequest(
-            email = "valid@example.com",
-            password = "validpassword"
-        )
+        val loginRequest =
+            TestDataFactory.createLoginRequest(
+                email = "valid@example.com",
+                password = "validpassword",
+            )
 
         // When
         val violations = validator.validate(loginRequest)
@@ -48,10 +49,11 @@ class LoginRequestTest {
     @Test
     fun `should fail validation for invalid email format`() {
         // Given
-        val loginRequest = LoginRequest(
-            email = "invalid-email",
-            password = "password123"
-        )
+        val loginRequest =
+            LoginRequest(
+                email = "invalid-email",
+                password = "password123",
+            )
 
         // When
         val violations = validator.validate(loginRequest)
@@ -64,10 +66,11 @@ class LoginRequestTest {
     @Test
     fun `should fail validation for blank email`() {
         // Given
-        val loginRequest = LoginRequest(
-            email = "",
-            password = "password123"
-        )
+        val loginRequest =
+            LoginRequest(
+                email = "",
+                password = "password123",
+            )
 
         // When
         val violations = validator.validate(loginRequest)
@@ -80,10 +83,11 @@ class LoginRequestTest {
     @Test
     fun `should fail validation for blank password`() {
         // Given
-        val loginRequest = LoginRequest(
-            email = "test@example.com",
-            password = ""
-        )
+        val loginRequest =
+            LoginRequest(
+                email = "test@example.com",
+                password = "",
+            )
 
         // When
         val violations = validator.validate(loginRequest)
@@ -97,7 +101,7 @@ class LoginRequestTest {
     fun `should support data class operations`() {
         // Given
         val original = TestDataFactory.createLoginRequest()
-        
+
         // When
         val modified = original.copy(email = "newemail@example.com")
 
@@ -109,18 +113,21 @@ class LoginRequestTest {
     @Test
     fun `should have proper equals and hashCode`() {
         // Given
-        val request1 = TestDataFactory.createLoginRequest(
-            email = "test@example.com",
-            password = "password"
-        )
-        val request2 = TestDataFactory.createLoginRequest(
-            email = "test@example.com",
-            password = "password"
-        )
-        val request3 = TestDataFactory.createLoginRequest(
-            email = "different@example.com",
-            password = "password"
-        )
+        val request1 =
+            TestDataFactory.createLoginRequest(
+                email = "test@example.com",
+                password = "password",
+            )
+        val request2 =
+            TestDataFactory.createLoginRequest(
+                email = "test@example.com",
+                password = "password",
+            )
+        val request3 =
+            TestDataFactory.createLoginRequest(
+                email = "different@example.com",
+                password = "password",
+            )
 
         // Then
         assertEquals(request1, request2)
@@ -131,13 +138,14 @@ class LoginRequestTest {
     @Test
     fun `should handle various valid email formats`() {
         // Given
-        val validEmails = listOf(
-            "user@example.com",
-            "user.name@example.com",
-            "user+tag@example.com",
-            "user123@example-domain.com",
-            "a@b.co"
-        )
+        val validEmails =
+            listOf(
+                "user@example.com",
+                "user.name@example.com",
+                "user+tag@example.com",
+                "user123@example-domain.com",
+                "a@b.co",
+            )
 
         validEmails.forEach { email ->
             // When

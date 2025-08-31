@@ -2,15 +2,20 @@ package com.auth.domain.service
 
 import com.auth.common.TestDataFactory
 import com.auth.infrastructure.persistence.PermissionRepo
-import io.mockk.*
+import io.mockk.Runs
+import io.mockk.clearAllMocks
+import io.mockk.every
+import io.mockk.just
+import io.mockk.mockk
+import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.util.*
+import java.util.Optional
+import java.util.UUID
 import kotlin.test.assertEquals
 
 class PermissionServiceTest {
-
     private val permissionRepo = mockk<PermissionRepo>()
     private lateinit var permissionService: PermissionService
 
@@ -35,11 +40,15 @@ class PermissionServiceTest {
         // Then
         assertEquals(savedPermission, result)
         verify { permissionRepo.existsByNameIgnoreCase(permissionName) }
-        verify { permissionRepo.save(match { 
-            it.name == permissionName && 
-            it.createdAt != null && 
-            it.updatedAt != null 
-        }) }
+        verify {
+            permissionRepo.save(
+                match {
+                    it.name == permissionName &&
+                        it.createdAt != null &&
+                        it.updatedAt != null
+                },
+            )
+        }
     }
 
     @Test
@@ -50,9 +59,10 @@ class PermissionServiceTest {
         every { permissionRepo.existsByNameIgnoreCase(permissionName) } returns true
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            permissionService.createPermission(permissionName)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                permissionService.createPermission(permissionName)
+            }
 
         assertEquals("Permission with name '$permissionName' already exists", exception.message)
         verify { permissionRepo.existsByNameIgnoreCase(permissionName) }
@@ -62,11 +72,12 @@ class PermissionServiceTest {
     @Test
     fun `getAllPermissions should return all permissions`() {
         // Given
-        val permissions = listOf(
-            TestDataFactory.createPermission(name = "READ_USER"),
-            TestDataFactory.createPermission(name = "WRITE_USER"),
-            TestDataFactory.createPermission(name = "DELETE_USER")
-        )
+        val permissions =
+            listOf(
+                TestDataFactory.createPermission(name = "READ_USER"),
+                TestDataFactory.createPermission(name = "WRITE_USER"),
+                TestDataFactory.createPermission(name = "DELETE_USER"),
+            )
 
         every { permissionRepo.findAll() } returns permissions
 
@@ -102,9 +113,10 @@ class PermissionServiceTest {
         every { permissionRepo.findById(permissionId) } returns Optional.empty()
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            permissionService.getPermissionById(permissionId)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                permissionService.getPermissionById(permissionId)
+            }
 
         assertEquals("Permission not found with ID: $permissionId", exception.message)
         verify { permissionRepo.findById(permissionId) }
@@ -134,9 +146,10 @@ class PermissionServiceTest {
         every { permissionRepo.findByNameIgnoreCase(permissionName) } returns Optional.empty()
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            permissionService.getPermissionByName(permissionName)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                permissionService.getPermissionByName(permissionName)
+            }
 
         assertEquals("Permission not found with name: $permissionName", exception.message)
         verify { permissionRepo.findByNameIgnoreCase(permissionName) }
@@ -162,11 +175,15 @@ class PermissionServiceTest {
         assertEquals(updatedPermission, result)
         verify { permissionRepo.findById(permissionId) }
         verify { permissionRepo.existsByNameIgnoreCase(newName) }
-        verify { permissionRepo.save(match { 
-            it.id == permissionId && 
-            it.name == newName && 
-            it.updatedAt != null 
-        }) }
+        verify {
+            permissionRepo.save(
+                match {
+                    it.id == permissionId &&
+                        it.name == newName &&
+                        it.updatedAt != null
+                },
+            )
+        }
     }
 
     @Test
@@ -200,9 +217,10 @@ class PermissionServiceTest {
         every { permissionRepo.findById(permissionId) } returns Optional.empty()
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            permissionService.updatePermission(permissionId, newName)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                permissionService.updatePermission(permissionId, newName)
+            }
 
         assertEquals("Permission not found with ID: $permissionId", exception.message)
         verify { permissionRepo.findById(permissionId) }
@@ -221,9 +239,10 @@ class PermissionServiceTest {
         every { permissionRepo.existsByNameIgnoreCase(newName) } returns true
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            permissionService.updatePermission(permissionId, newName)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                permissionService.updatePermission(permissionId, newName)
+            }
 
         assertEquals("Permission with name '$newName' already exists", exception.message)
         verify { permissionRepo.findById(permissionId) }
@@ -255,9 +274,10 @@ class PermissionServiceTest {
         every { permissionRepo.existsById(permissionId) } returns false
 
         // When & Then
-        val exception = assertThrows<IllegalArgumentException> {
-            permissionService.deletePermission(permissionId)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                permissionService.deletePermission(permissionId)
+            }
 
         assertEquals("Permission not found with ID: $permissionId", exception.message)
         verify { permissionRepo.existsById(permissionId) }

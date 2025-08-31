@@ -1,13 +1,16 @@
 package com.auth.domain.model
 
 import com.auth.common.TestDataFactory
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.*
 import java.time.OffsetDateTime
-import java.util.*
+import java.util.UUID
 
 class UserTest {
-
     @Test
     fun `should create user with all fields`() {
         // Given
@@ -20,15 +23,16 @@ class UserTest {
         val updatedAt = OffsetDateTime.now()
 
         // When
-        val user = User(
-            id = id,
-            email = email,
-            username = username,
-            password = password,
-            enabled = enabled,
-            createdAt = createdAt,
-            updatedAt = updatedAt
-        )
+        val user =
+            User(
+                id = id,
+                email = email,
+                username = username,
+                password = password,
+                enabled = enabled,
+                createdAt = createdAt,
+                updatedAt = updatedAt,
+            )
 
         // Then
         assertEquals(id, user.id)

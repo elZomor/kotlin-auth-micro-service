@@ -4,7 +4,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import java.time.OffsetDateTime
-import java.util.*
+import java.util.UUID
 
 @Entity
 @Table(name = "users")
@@ -16,5 +16,5 @@ data class User(
     val password: String,
     val enabled: Boolean = true,
     val createdAt: OffsetDateTime? = null,
-    val updatedAt: OffsetDateTime? = null
+    val updatedAt: OffsetDateTime? = null,
 )

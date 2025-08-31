@@ -1,14 +1,16 @@
 package com.auth.infrastructure.security
 
-import io.mockk.*
+import io.mockk.clearAllMocks
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.util.*
+import java.util.Date
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class TokenBlacklistServiceTest {
-
     private lateinit var tokenBlacklistService: TokenBlacklistService
     private val jwtService = mockk<JwtService>()
 
@@ -110,7 +112,7 @@ class TokenBlacklistServiceTest {
 
         // Then
         assertFalse(result)
-        
+
         // Verify token was removed from blacklist
         val secondResult = tokenBlacklistService.isTokenBlacklisted(token)
         assertFalse(secondResult)
@@ -122,24 +124,24 @@ class TokenBlacklistServiceTest {
         val validToken = "valid.token"
         val expiredToken1 = "expired.token.1"
         val expiredToken2 = "expired.token.2"
-        
+
         val futureTime = System.currentTimeMillis() + 3600000 // 1 hour from now
         val pastTime = System.currentTimeMillis() - 1000 // 1 second ago
-        
+
         // Setup valid token
         val validClaims = mockk<io.jsonwebtoken.Jws<io.jsonwebtoken.Claims>>()
         val validPayload = mockk<io.jsonwebtoken.Claims>()
         every { jwtService.parse(validToken) } returns validClaims
         every { validClaims.payload } returns validPayload
         every { validPayload.expiration } returns Date(futureTime)
-        
+
         // Setup expired tokens
         val expiredClaims1 = mockk<io.jsonwebtoken.Jws<io.jsonwebtoken.Claims>>()
         val expiredPayload1 = mockk<io.jsonwebtoken.Claims>()
         every { jwtService.parse(expiredToken1) } returns expiredClaims1
         every { expiredClaims1.payload } returns expiredPayload1
         every { expiredPayload1.expiration } returns Date(pastTime)
-        
+
         val expiredClaims2 = mockk<io.jsonwebtoken.Jws<io.jsonwebtoken.Claims>>()
         val expiredPayload2 = mockk<io.jsonwebtoken.Claims>()
         every { jwtService.parse(expiredToken2) } returns expiredClaims2
@@ -171,7 +173,7 @@ class TokenBlacklistServiceTest {
         // Given
         val token = "valid.token"
         val futureTime = System.currentTimeMillis() + 3600000 // 1 hour from now
-        
+
         val mockClaims = mockk<io.jsonwebtoken.Jws<io.jsonwebtoken.Claims>>()
         val mockPayload = mockk<io.jsonwebtoken.Claims>()
         every { jwtService.parse(token) } returns mockClaims
@@ -194,7 +196,7 @@ class TokenBlacklistServiceTest {
         val token2 = "token.2"
         val token3 = "token.3"
         val futureTime = System.currentTimeMillis() + 3600000
-        
+
         listOf(token1, token2, token3).forEach { token ->
             val mockClaims = mockk<io.jsonwebtoken.Jws<io.jsonwebtoken.Claims>>()
             val mockPayload = mockk<io.jsonwebtoken.Claims>()

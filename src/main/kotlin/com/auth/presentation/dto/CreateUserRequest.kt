@@ -6,5 +6,5 @@ package com.auth.presentation.dto
 data class CreateUserRequest(
     val email: String,
     val username: String? = null,
-    val password: String
+    val password: String,
 )
