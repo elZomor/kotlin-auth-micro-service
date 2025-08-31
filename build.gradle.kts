@@ -155,7 +155,7 @@ dependencyCheck {
 	format = "ALL"
 	suppressionFile = "$projectDir/config/dependency-check/suppressions.xml"
 	failBuildOnCVSS = 7.0f
-	analyzers {
+	analyzers.apply {
 		assemblyEnabled = false
 		nuspecEnabled = false
 		nugetconfEnabled = false
