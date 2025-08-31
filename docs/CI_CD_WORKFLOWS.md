@@ -166,7 +166,7 @@ violationRules {
     rule {
         limit {
             counter = "LINE"
-            minimum = "0.90".toBigDecimal() // 90%
+            minimum = "0.80".toBigDecimal()
         }
     }
 }

@@ -68,8 +68,9 @@ class PermissionTest {
     fun `should have proper equals and hashCode`() {
         // Given
         val id = UUID.randomUUID()
-        val permission1 = TestDataFactory.createPermission(id = id, name = "READ_USER")
-        val permission2 = TestDataFactory.createPermission(id = id, name = "READ_USER")
+        val timestamp = OffsetDateTime.now()
+        val permission1 = TestDataFactory.createPermission(id = id, name = "READ_USER", createdAt = timestamp, updatedAt = timestamp)
+        val permission2 = TestDataFactory.createPermission(id = id, name = "READ_USER", createdAt = timestamp, updatedAt = timestamp)
         val permission3 = TestDataFactory.createPermission(name = "WRITE_USER")
 
         // Then
