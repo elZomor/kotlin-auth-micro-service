@@ -26,11 +26,11 @@ jobs:
     
     services:
       postgres:
-        image: postgres:${{ env.POSTGRES_VERSION }}
+        image: postgres:17
         env:
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: rbac_test_db
+          POSTGRES_USER: rbac_test
+          POSTGRES_PASSWORD: rbac_test_password
         options: >-
           --health-cmd pg_isready
           --health-interval 10s

@@ -248,7 +248,7 @@ jobs:
         echo "Badge URL: $BADGE_URL"
 
     - name: Upload test and coverage artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-coverage-reports
